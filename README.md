@@ -1,7 +1,33 @@
-# quick-and-simple
-Small scripts to make annoying Linux tasks easier.
+# Quick-and-Simple Linux Tools
 
+A collection of Linux scripts and Python utilities for file management, system tasks, and quick automation.
 
-### I wanted to put all these smaller scripts in one Repo as these are related.
+## File and Folder Utilities
 
-### Update: New Find.py now search from root directory. 
+- **[Find.py](Find.py)** – Search for files using wildcards and safe system-wide scanning. See [Find.read](Find.read) for usage.
+- **[Combine.py](Combine.py)** – Combine contents of multiple files. See [Combine.read](Combine.read) for usage.
+- **[Compare.py](Compare.py)** – Compare two files or directories. See [Compare.read](Compare.read) for usage.
+- **[fileNames.sh](fileNames.sh)** – List file names in a directory. See [fileNames.read](fileNames.read) for usage.
+- **[folderNames.sh](folderNames.sh)** – List folder names in a directory. See [folderNames.read](folderNames.read) for usage.
+- **[folderNumbered.sh](folderNumbered.sh)** – List folders with numbered output.
+
+## System and Process Utilities
+
+- **[killproc.sh](killproc.sh)** – Kill processes by name. See [killproc.read](killproc.read) for usage.
+- **[Cron.sh](Cron.sh)** – Manage cron jobs. See [Cron.read](Cron.read) for usage.
+- **[Version.sh](Version.sh)** – Check software versions. See [Version.read](Version.read) for usage.
+- **[Dd.sh](Dd.sh)** – Data dumping and cloning. See [dd.read](dd.read) for usage.
+- **[dump.py](dump.py)** – Dump data from files. See [dump.read](dump.read) for usage.
+
+## Aliases and Configuration Helpers
+
+- **[Add-Alias.sh](Add-Alias.sh)** – Add shell aliases quickly. See [Add-Alias.read](Add-Alias.read) for usage.
+- **[add_ip.sh](add_ip.sh)** – Add IP addresses to configuration. See [add_ip.read](add_ip.read) for usage.
+
+## Usage
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/quick-and-simple_Linux-tools.git
+cd quick-and-simple_Linux-tools
