@@ -9,7 +9,7 @@ A collection of Linux scripts and Python utilities for file management, system t
 - **[Compare.py](Compare.py)** – Compare two files or directories. See [Compare.read](Compare.read) for usage.
 - **[fileNames.sh](fileNames.sh)** – List file names in a directory. See [fileNames.read](fileNames.read) for usage.
 - **[folderNames.sh](folderNames.sh)** – List folder names in a directory. See [folderNames.read](folderNames.read) for usage.
-- **[folderNumbered.sh](folderNumbered.sh)** – Create a group of numbered folders. See **[folderNumbered.read] (folderNumbered.read)** for usage. 
+- **[folderNumbered.sh](folderNumbered.sh)** – Create a group of numbered folders. See [folderNumbered.read](folderNumbered.read) for usage. 
 
 ## System and Process Utilities
 
