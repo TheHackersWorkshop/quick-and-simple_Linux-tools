@@ -1,1 +1,3 @@
-Find find files by filename or wildcards. 
+# Find find files by filename or wildcards. 
+
+## Updated to allow to search from root without crashing. 
