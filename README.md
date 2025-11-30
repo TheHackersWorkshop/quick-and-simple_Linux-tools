@@ -24,10 +24,4 @@ A collection of Linux scripts and Python utilities for file management, system t
 - **[Add-Alias.sh](Add-Alias.sh)** – Add shell aliases quickly. See [Add-Alias.read](Add-Alias.read) for usage.
 - **[add_ip.sh](add_ip.sh)** – Add IP addresses to configuration. See [add_ip.read](add_ip.read) for usage.
 
-## Usage
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/quick-and-simple_Linux-tools.git
-cd quick-and-simple_Linux-tools
