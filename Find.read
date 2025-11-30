@@ -1,3 +1,6 @@
-# Find find files by filename or wildcards. 
+This Python script searches for files on your Linux system using wildcards.
+You provide a filename pattern (e.g., *.sh) and a directory to start the search (defaulting to /media), and the script recursively lists all matching files.
+It safely skips system directories that can cause errors (/proc, /sys, /run, /dev) and streams results incrementally to avoid memory issues.
+Errors from inaccessible files are reported but do not stop the search, making it a robust, universal file-finding tool.
 
 ## Updated to allow to search from root without crashing. 
