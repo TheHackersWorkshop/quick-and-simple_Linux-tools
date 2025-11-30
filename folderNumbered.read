@@ -1,0 +1,4 @@
+This script creates a series of numbered directories in the current working directory. 
+You can optionally provide a prefix for the directory names; if left blank, directories will be named with just numbers (e.g., 01, 02, …).
+You are prompted to enter the total number of directories to create, and the script validates that this is a positive integer.
+Directories are created sequentially with zero-padded numbers, and a confirmation message shows the range of directories created.
