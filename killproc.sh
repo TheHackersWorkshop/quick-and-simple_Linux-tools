@@ -1,63 +1,64 @@
 #!/bin/bash
 
-# Check for argument before anything
+# 1. Check for argument
 if [ -z "$1" ]; then
     echo "Usage: killproc <PID|process name>"
     exit 1
 fi
 
-# Elevate to root only when needed
+# 2. Elevate to root (Preserve environment)
 if [ "$EUID" -ne 0 ]; then
     echo "Elevating privileges with sudo..."
-    exec sudo "$0" "$@"
+    exec sudo -E "$0" "$@"
 fi
 
 target=$1
 
-# Function to kill a single PID
-kill_by_pid() {
-    echo "Killing process with PID: $1"
-    kill -9 "$1" && echo "Process $1 killed." || echo "Failed to kill process $1."
-}
-
-# Function to find and kill processes by name with selection
 kill_by_name() {
-    pids=$(pgrep -f "$1")
+    # -f: Match full command line
+    # -i: CASE-INSENSITIVE (this fixes your Maelstrom issue)
+    # grep -v: Exclude this script's PID ($$) and the script name
+    pids=$(pgrep -fi "$1" | grep -v -e "$$" -e "killproc")
 
     if [ -z "$pids" ]; then
-        echo "No process found containing name: $1"
+        echo "No process found matching: $1 (searched case-insensitively)"
         exit 1
     fi
 
-    echo "Found the following processes:"
+    echo "Found the following processes (Case-Insensitive):"
     echo
-    printf "%-8s %-s\n" "PID" "Command"
-    echo "$pids" | while read -r pid; do
-        cmd=$(ps -p "$pid" -o cmd=)
-        printf "%-8s %s\n" "$pid" "$cmd"
+    printf "%-8s %-10s %-s\n" "PID" "USER" "COMMAND"
+    echo "----------------------------------------------------------"
+
+    # Use a loop that handles multiple PIDs correctly
+    for pid in $pids; do
+        user=$(ps -p "$pid" -o user= 2>/dev/null)
+        cmd=$(ps -p "$pid" -o args= 2>/dev/null | cut -c 1-80)
+
+        if [ -n "$user" ]; then
+            printf "%-8s %-10s %s\n" "$pid" "$user" "$cmd"
+        fi
     done
     echo
 
-    read -p "Enter PID(s) to kill (e.g., 1234 or 1234 5678), or type 'all' to kill all: " input
+    read -p "Enter PID(s) to kill, or type 'all': " input
 
     if [[ "$input" == "all" ]]; then
-        echo "$pids" | while read -r pid; do
-            kill -9 "$pid" && echo "Killed PID $pid" || echo "Failed to kill PID $pid"
+        for pid in $pids; do
+            kill -9 "$pid" 2>/dev/null && echo "Killed PID $pid"
         done
-    elif [[ "$input" =~ ^[0-9\ ,]+$ ]]; then
-        # Clean and split input into array
-        input=$(echo "$input" | tr ',' ' ')
+    elif [[ "$input" =~ ^[0-9\ ]+$ ]]; then
         for pid in $input; do
-            kill -9 "$pid" && echo "Killed PID $pid" || echo "Failed to kill PID $pid"
+            kill -9 "$pid" 2>/dev/null && echo "Killed PID $pid" || echo "Failed to kill PID $pid"
         done
     else
-        echo "Invalid input or abort requested. No processes killed."
+        echo "Action cancelled."
     fi
 }
 
 # Main logic
 if [[ "$target" =~ ^[0-9]+$ ]]; then
-    kill_by_pid "$target"
+    kill -9 "$target" 2>/dev/null && echo "Killed PID $target" || echo "PID $target not found."
 else
     kill_by_name "$target"
 fi
