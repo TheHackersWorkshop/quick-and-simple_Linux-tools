@@ -1,0 +1,45 @@
+DNS Query Tool
+
+DNS Query Tool is an interactive command-line utility written in Bash that simplifies common DNS lookups using the dig command. Instead of remembering multiple dig flags or command combinations, the script presents a menu-driven interface that allows users to quickly perform specific DNS queries with a single selection.
+
+The tool supports a wide range of DNS record lookups and diagnostics, making it useful for system administrators, network engineers, and developers who frequently troubleshoot DNS issues.
+
+Once launched, the script displays a menu that allows the user to select different query types and enter a domain name. The results are returned directly from dig, often in a shortened format for readability.
+
+The tool supports the following queries:
+
+Full Dig Output – Displays the complete raw DNS response
+
+A Record Lookup – Retrieves IPv4 addresses
+
+AAAA Record Lookup – Retrieves IPv6 addresses
+
+MX Record Lookup – Shows mail server records
+
+NS Record Lookup – Lists authoritative nameservers
+
+TXT Record Lookup – Displays text records such as SPF, DKIM, or verification tokens
+
+CNAME Lookup – Identifies canonical domain aliases
+
+SOA Record Lookup – Shows zone authority information
+
+Reverse DNS Lookup – Resolves an IP address to its hostname
+
+DNS Trace – Displays the full resolution path from root servers to the authoritative server
+
+A built-in DNS propagation check queries several major global resolvers to compare results across networks:
+
+Google DNS (8.8.8.8)
+
+Cloudflare (1.1.1.1)
+
+OpenDNS (208.67.222.222)
+
+Quad9 (9.9.9.9)
+
+This feature allows users to quickly see whether DNS changes have propagated across multiple major DNS providers.
+
+The script also includes usability features such as returning to the main menu if no domain is entered, simple formatted output for propagation checks, and continuous operation through a loop until the user chooses to exit.
+
+Because it relies only on standard Bash utilities and the widely available dig command, the tool runs on most Linux and Unix-like systems without additional dependencies.
