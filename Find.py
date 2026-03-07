@@ -1,32 +1,62 @@
+#!/usr/bin/env python3
 import subprocess
+import os
+import sys
 
 def search_files():
-    # Prompt the user for the search pattern
-    file_pattern = input("Enter the file pattern to search for (e.g., '*.sh'): ")
+    print("--- Deep File Finder ---")
 
-    # Prompt the user for the directory to search (default to /media)
-    directory = input("Enter the directory to search (default: /media): ") or "/media"
+    # 1. Automatic Elevation (Search usually needs root for /media)
+    if os.geteuid() != 0:
+        os.execvp("sudo", ["sudo", "python3"] + sys.argv)
 
-    # List of directories to exclude (pseudo-filesystems, runtime mounts)
-    exclude_dirs = ["/proc", "/sys", "/run", "/dev"]
+    # 2. Pattern Input
+    pattern = input("File pattern (e.g., 'invoice*' or '*.pdf'): ").strip()
+    if not pattern:
+        print("No pattern provided. Exiting.")
+        return
 
-    # Build the exclude part of the find command
-    exclude_expr = " ".join([f"-path {d} -prune -o" for d in exclude_dirs])
+    # 3. Directory with Expansion
+    default_dir = "/media"
+    dir_input = input(f"Search directory [default: {default_dir}]: ").strip()
+    search_dir = os.path.expanduser(os.path.expandvars(dir_input)) if dir_input else default_dir
 
-    # Complete find command
-    command = f"sudo find {directory} {exclude_expr} -type f -name \"{file_pattern}\" -print"
+    if not os.path.isdir(search_dir):
+        print(f"Error: '{search_dir}' is not a valid directory.")
+        return
+
+    # 4. The 'Find' Command
+    # -iname: Case-insensitive search (Crucial when you 'don't know' the name)
+    # -type f: Files only
+    # 2>/dev/null: Hide permission denied errors
+    command = ["find", search_dir, "-type f", "-iname", f"*{pattern}*", "2>/dev/null"]
+
+    print(f"\nSearching for '{pattern}' in {search_dir}...")
+    print("------------------------------------------")
 
     try:
-        # Use Popen to stream output instead of waiting for the full command
-        with subprocess.Popen(command, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-            for line in proc.stdout:
-                print(line.strip())
-            stderr_output = proc.stderr.read()
-            if stderr_output:
-                print("Some errors occurred during search (ignored):")
-                print(stderr_output.strip())
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        # Use Popen to stream results line-by-line
+        # This is better for large drives so you don't wait forever
+        proc = subprocess.Popen(" ".join(command), shell=True, stdout=subprocess.PIPE, text=True)
 
-# Run the function
-search_files()
+        found_count = 0
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            print(f"[FOUND]: {line.strip()}")
+            found_count += 1
+
+        if found_count == 0:
+            print("No matches found.")
+        else:
+            print(f"------------------------------------------")
+            print(f"Search complete. {found_count} matches found.")
+
+    except KeyboardInterrupt:
+        print("\nSearch cancelled by user.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    search_files()
