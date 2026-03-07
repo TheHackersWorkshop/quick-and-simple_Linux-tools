@@ -1,1 +1,27 @@
-I use this to add new aliases to the custom alias file. The alias file I use is on GitHub. 
+Global Alias Manager
+
+Global Alias Manager is a Bash utility designed to simplify the creation and management of system-wide shell aliases. Instead of manually editing configuration files, the script provides an interactive interface that safely adds new aliases to a centralized alias file.
+
+The tool manages aliases through a dedicated file located at /etc/.aliases, allowing administrators to maintain a single location for shared command shortcuts that can be loaded into any shell environment.
+
+When executed, the script automatically elevates privileges using sudo if root access is required, ensuring it can safely modify the system alias file without requiring the user to rerun the command manually.
+
+For usability, the tool displays the five most recently added aliases at startup so the user can quickly see existing entries without scrolling through an entire file. This provides context and helps prevent accidental duplication.
+
+During the alias creation process, the script performs several safeguards:
+
+Duplicate detection to prevent overwriting an existing alias
+
+Interactive prompts for the alias name and command
+
+Confirmation before writing to the alias file
+
+Graceful exit if the user leaves inputs blank
+
+Once confirmed, the alias is appended to the alias file and can immediately be activated by running:
+
+source /etc/.aliases
+
+The utility is intended for Linux environments where administrators or power users want a cleaner way to manage persistent command shortcuts across sessions.
+
+Because it relies only on standard Bash tools (grep, tail, sed, column), the script remains lightweight while still providing a safer and more user-friendly workflow for managing global aliases.
