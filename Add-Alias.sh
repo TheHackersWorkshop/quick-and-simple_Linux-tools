@@ -1,48 +1,61 @@
+#!/bin/bash
 
-# File where aliases are stored
 ALIAS_FILE="/etc/.aliases"
 
-# Function to check for duplicate alias
-check_duplicate() {
-    grep -q "alias $1=" "$ALIAS_FILE"
-}
+# 1. Elevate early
+if [ "$EUID" -ne 0 ]; then
+    echo "Elevating to root to modify $ALIAS_FILE..."
+    exec sudo "$0" "$@"
+fi
 
-# Function to prompt user for alias and command
-add_alias() {
-    while true; do
-        # Ask for alias name
-        echo "Enter the alias name (starting with a capital letter recommended): "
-        read alias_name
+[ ! -f "$ALIAS_FILE" ] && touch "$ALIAS_FILE"
 
-        # Check if alias already exists
-        if check_duplicate "$alias_name"; then
-            echo "Error: Alias '$alias_name' already exists in $ALIAS_FILE."
-            echo "Please enter a different alias name."
-        else
-            # Ask for the command to be aliased
-            echo "Enter the command for alias '$alias_name': "
-            read command
+echo "--- Global Alias Manager ---"
+echo "(Leave blank and press Enter to cancel)"
+echo ""
 
-            # Display the alias line for confirmation
-            echo ""
-            echo "You are about to add the following alias:"
-            echo "alias $alias_name='$command'"
-            echo ""
-            echo "Is this correct? (y/n): "
-            read confirmation
+# 2. Show only the last few entries for context (Avoids the wall of text)
+echo "--- Last 5 Aliases Added ---"
+if [ -s "$ALIAS_FILE" ]; then
+    # We filter for lines actually starting with 'alias' and show the last 5
+    grep "^alias " "$ALIAS_FILE" | tail -n 5 | sed "s/alias //g" | column -t -s '='
+else
+    echo "(No aliases defined yet)"
+fi
+echo "------------------------------------------"
+echo ""
 
-            if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
-                # Add the alias to the .aliases file
-                echo "alias $alias_name='$command'" | sudo tee -a "$ALIAS_FILE" > /dev/null
-                echo "Alias '$alias_name' added successfully."
-                break
-            else
-                echo "Alias not added."
-                break
-            fi
-        fi
-    done
-}
+# 3. Alias Name Input (with Escape)
+read -p "Enter the NEW alias name: " alias_name
+if [[ -z "$alias_name" ]]; then
+    echo "Exiting."
+    exit 0
+fi
 
-# Start the alias addition process
-add_alias
+# Check for duplicates
+if grep -q "alias ${alias_name}=" "$ALIAS_FILE"; then
+    echo "Error: Alias '$alias_name' already exists."
+    exit 1
+fi
+
+# 4. Command Input (with Escape)
+read -p "Enter the command for '$alias_name': " cmd_raw
+if [[ -z "$cmd_raw" ]]; then
+    echo "Exiting."
+    exit 0
+fi
+
+# 5. Confirmation & Safe Writing
+alias_line="alias $alias_name='$cmd_raw'"
+
+echo -e "\nProposed: $alias_line"
+read -p "Is this correct? (y/n): " confirmation
+
+if [[ "$confirmation" =~ ^[Yy]$ ]]; then
+    # Append to the end of the file
+    echo "$alias_line" >> "$ALIAS_FILE"
+    echo "Success! Alias added."
+    echo "Run 'source $ALIAS_FILE' to use it now."
+else
+    echo "Aborted."
+fi
