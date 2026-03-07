@@ -1,0 +1,33 @@
+Permissions Inspector
+
+Permissions Inspector is a small command-line utility for Linux that analyzes a file or directory and presents its permission details in a clear, human-readable format. Instead of manually interpreting octal values or symbolic permission strings, the tool explains ownership, access rights, and special permission bits while also telling the current user what actions they are actually allowed to perform.
+
+The script automatically elevates privileges using sudo when necessary so it can inspect protected files without requiring the user to manually rerun the command as root.
+
+Once a path is entered, the tool retrieves filesystem metadata and displays:
+
+Full permission information in both octal and symbolic formats
+
+File ownership (user and group)
+
+Last modification timestamp
+
+A simple explanation of whether the current user can read, write, or execute the target
+
+Detection of special permission bits such as SUID, SGID, and Sticky
+
+This makes the tool useful for troubleshooting Linux permission issues, verifying access rights, or quickly auditing files without needing to remember the meaning of permission flags.
+
+The program gracefully exits when no path is provided and expands ~ and environment variables for convenience.
+
+Typical use cases include:
+
+Debugging file permission problems
+
+Learning how Linux permission bits work
+
+Quickly checking ownership and access rights
+
+Identifying files with special permission bits enabled
+
+The project is written in Python and relies only on standard library modules (os, stat, pwd, grp, datetime), making it lightweight and portable across most Linux systems.
