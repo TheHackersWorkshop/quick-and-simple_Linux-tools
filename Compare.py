@@ -1,35 +1,62 @@
+#!/usr/bin/env python3
 import difflib
 import os
+import sys
 
-def compare_files(file1_path, file2_path):
-    # Check if files exist
-    if not os.path.exists(file1_path):
-        print(f"Error: '{file1_path}' does not exist.")
+# Terminal colors for better readability
+RED = "\033[91m"
+GREEN = "\033[92m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
+def compare_files():
+    print("--- File Comparison Tool ---")
+    print("(Leave blank to exit)")
+
+    f1 = input("Path for First File:  ").strip()
+    if not f1: return
+    f2 = input("Path for Second File: ").strip()
+    if not f2: return
+
+    # Expand paths
+    file1_path = os.path.expanduser(os.path.expandvars(f1))
+    file2_path = os.path.expanduser(os.path.expandvars(f2))
+
+    if not os.path.isfile(file1_path) or not os.path.isfile(file2_path):
+        print(f"{RED}Error: One or both paths are not valid files.{RESET}")
         return
-    if not os.path.exists(file2_path):
-        print(f"Error: '{file2_path}' does not exist.")
-        return
 
-    # Open and read both files as whole text blocks
-    with open(file1_path, 'r') as file1, open(file2_path, 'r') as file2:
-        file1_content = file1.readlines()
-        file2_content = file2.readlines()
+    try:
+        with open(file1_path, 'r', encoding='utf-8') as f1_obj, \
+             open(file2_path, 'r', encoding='utf-8') as f2_obj:
+            file1_content = f1_obj.readlines()
+            file2_content = f2_obj.readlines()
 
-    # Create a Differ object to compare the files' contents
-    differ = difflib.Differ()
-    diff = list(differ.compare(file1_content, file2_content))
+        # Unified diff is generally faster and cleaner for admins
+        diff = difflib.unified_diff(
+            file1_content, file2_content,
+            fromfile=file1_path, tofile=file2_path, lineterm=''
+        )
 
-    # Filter and print only differences
-    has_diff = False
-    for line in diff:
-        if line.startswith("+ ") or line.startswith("- ") or line.startswith("? "):
-            print(line, end='')
+        has_diff = False
+        print(f"\n{CYAN}--- Results ---{RESET}")
+
+        for line in diff:
             has_diff = True
+            if line.startswith('+'):
+                print(f"{GREEN}{line}{RESET}")
+            elif line.startswith('-'):
+                print(f"{RED}{line}{RESET}")
+            elif line.startswith('^'):
+                print(f"{CYAN}{line}{RESET}")
+            else:
+                print(line)
 
-    if not has_diff:
-        print("The files are identical.")
+        if not has_diff:
+            print(f"{GREEN}The files are identical.{RESET}")
+
+    except Exception as e:
+        print(f"{RED}Error: {e}{RESET}")
 
 if __name__ == '__main__':
-    file1_path = input("Enter the path for the first file: ").strip()
-    file2_path = input("Enter the path for the second file: ").strip()
-    compare_files(file1_path, file2_path)
+    compare_files()
