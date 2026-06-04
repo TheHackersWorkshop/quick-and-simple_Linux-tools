@@ -3,20 +3,22 @@
 echo "--- Directory File Indexer ---"
 echo "(Leave blank to exit)"
 
-# 1. Input with expansion (~/Desktop, etc.)
 read -p "Enter directory to scan: " raw_path
 [[ -z "$raw_path" ]] && exit 0
 
 folder_path=$(eval echo "$raw_path")
 
-# 2. Validation
 if [ ! -d "$folder_path" ]; then
     echo "Error: Directory '$folder_path' not found!"
     exit 1
 fi
 
-# 3. Clean Output
-output_file="./files_list.txt"
+# Extract the base name of the parent directory
+# (e.g., /home/david/netlogs -> netlogs)
+PARENT_NAME=$(basename "$folder_path")
+
+# 3. Dynamic Output File Destination
+output_file="./${PARENT_NAME}_files_list.txt"
 
 # -type f: Files only
 # -maxdepth 1: Stay in this folder
@@ -30,7 +32,7 @@ if [ "$count" -gt 0 ]; then
     echo "--------------------------------"
     echo "Success: $count files indexed."
     echo "Saved to: $output_file"
-    echo "First 3 entries:"
+    echo "First 3 entries (Verification):"
     head -n 3 "$output_file"
     echo "--------------------------------"
 else
