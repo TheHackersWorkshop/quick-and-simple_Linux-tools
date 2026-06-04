@@ -32,5 +32,4 @@ The script operates on basic Linux core utilities. However, for full matrix eval
 
 1. Clone or download the script block to your local system environment:
    ```bash
-   git clone [https://github.com/yourusername/your-repo-name.git](https://github.com/yourusername/your-repo-name.git)
-   cd your-repo-name
+   git clone https://github.com/TheHackersWorkshop/quick-and-simple_Linux-tools/blob/main/Diagnostics.sh
