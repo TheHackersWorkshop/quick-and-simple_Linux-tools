@@ -14,18 +14,14 @@ if [ ! -d "$folder_path" ]; then
 fi
 
 # Extract the base name of the parent directory
-# (e.g., /home/david/netlogs -> netlogs)
 PARENT_NAME=$(basename "$folder_path")
 
 # 3. Dynamic Output File Destination
 output_file="./${PARENT_NAME}_files_list.txt"
 
-# -type f: Files only
-# -maxdepth 1: Stay in this folder
 # sort: Alphabetical order
 find "$folder_path" -maxdepth 1 -type f -printf "%f\n" | sort > "$output_file"
 
-# 4. Summary
 count=$(wc -l < "$output_file")
 
 if [ "$count" -gt 0 ]; then
