@@ -1,0 +1,36 @@
+# Lean Linux System Diagnostics Engine
+
+A high-performance, zero-dependency Bash engine that runs comprehensive system diagnostics, kernel exception hunting, and network routing verification. The script aggregates low-level metrics using optimized non-blocking subsystems and builds an isolated, responsive HTML report directly inside the current working directory.
+
+## Features
+
+- **Decoupled Architecture:** All computational, system-level polling, and data loops execute outside the HTML generation layer to ensure deterministic script performance and eliminate heredoc parsing overhead.
+- **Kernel Exception Hunting:** Explicitly tracks OOM (Out Of Memory) killer interventions restricted to the current boot window, alongside hardware thermal throttling cycles.
+- **Advanced Network Telemetry:** Maps public IPv4 egress status against a complete local interface full-stack scan and filters established/listening sockets.
+- **Hardware & File Table Verification:** Reports precise storage consumption along with inode allocation tables to flag underlying file-system serialization capacity risks.
+- **Zero Configuration Bloat:** Outputs clean, styled, component-isolated HTML documents with dynamic CSS badges detailing system urgency parameters (Nominal / Warning / Critical Alert).
+
+## Data Layers Collected
+
+| Subsystem Component | Extraction Engine | Target Metric |
+| :--- | :--- | :--- |
+| **Compute Engine** | `vmstat` (Single-pass evaluated) | Active Task CPU load vs Idle overhead |
+| **Physical Memory** | `free` | Total RAM saturation % and Active Swap I/O |
+| **Kernel Log Tracking**| `journalctl` & `dmesg` | Boot-scoped OOM Interventions & Driver Ring Buffer tracking |
+| **Network Matrix** | `curl`, `ip`, & `ss` | External egress paths, interface tables, & socket listening profiles |
+| **Storage Tables** | `df -hP` & `df -iP` | Capacity ceilings & block device file allocations |
+
+## Dependencies
+
+The script operates on basic Linux core utilities. However, for full matrix evaluation, ensure the following utilities are present on your target system:
+* `systemd` (specifically `journalctl` for kernel log isolation)
+* `iproute2` (`ip` and `ss` utilities)
+* `procps` (`vmstat`, `free`, `ps`)
+* `curl` (for public ingress/egress validation)
+
+## Installation & Deployment
+
+1. Clone or download the script block to your local system environment:
+   ```bash
+   git clone [https://github.com/yourusername/your-repo-name.git](https://github.com/yourusername/your-repo-name.git)
+   cd your-repo-name
