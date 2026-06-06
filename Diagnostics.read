@@ -1,3 +1,5 @@
+Updated to fix a few errors
+
 # Lean Linux System Diagnostics Engine
 
 A high-performance, zero-dependency Bash engine that runs comprehensive system diagnostics, kernel exception hunting, and network routing verification. The script aggregates low-level metrics using optimized non-blocking subsystems and builds an isolated, responsive HTML report directly inside the current working directory.
