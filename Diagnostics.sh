@@ -8,21 +8,20 @@ if [ "$EUID" -ne 0 ] 2>/dev/null; then
   fi
 fi
 
-# Configuration - Saves directly to your current directory to avoid volatile /tmp resets
+# Configuration - Saves directly to your current directory
 REPORT_DIR="$PWD"
 REPORT_FILE="${REPORT_DIR}/sys_report_$(date +%Y%m%d_%H%M%S).html"
 
-# --- DATA COLLECTION LAYER (ALL LOOPS OUTSIDE HTML TO PREVENT SYNTAX ERRORS) ---
+# --- DATA COLLECTION LAYER ---
 
-# Host Info
 HOSTNAME=$(hostname)
 KERNEL=$(uname -r)
 UPTIME=$(uptime -p)
 
-# Single vmstat call to optimize performance and prevent race conditions
+# Single vmstat call to optimize performance
 VM_STATS_FULL=$(vmstat 1 2 | tail -n 1)
 
-# CPU Utilization (Cleaned up to ensure only numbers are evaluated in math expansion)
+# CPU Utilization
 CPU_IDLE=$(echo "$VM_STATS_FULL" | awk '{print $15}' | tr -d -c '0-9')
 CPU_USAGE=$((100 - ${CPU_IDLE:-0}))
 
@@ -41,32 +40,32 @@ else
 fi
 
 # Storage Space & Inodes
-DISK_CRIT=$(df -hP -x devtmpfs -x tmpfs 2>/dev/null | awk '0+$5 >= 90 {print $1 " (" $5 ")"}')
+DISK_CRIT=$(df -hP -x devtmpfs -x tmpfs -x squashfs 2>/dev/null | awk '0+$5 >= 90 {print $1 " (" $5 ")"}')
 if [ -n "$DISK_CRIT" ]; then
     DISK_STATUS="<span class='badge alert'>Critically Full: $DISK_CRIT</span>"
 else
     DISK_STATUS="<span class='badge pass'>Healthy Storage Caps</span>"
 fi
 
-INODE_CRIT=$(df -iP -x devtmpfs -x tmpfs 2>/dev/null | awk '0+$5 >= 90 {print $1 " (" $5 ")"}')
+INODE_CRIT=$(df -iP -x devtmpfs -x tmpfs -x squashfs 2>/dev/null | awk '0+$5 >= 90 {print $1 " (" $5 ")"}')
 if [ -n "$INODE_CRIT" ]; then
     INODE_STATUS="<span class='badge alert'>Inode Saturation: $INODE_CRIT</span>"
 else
     INODE_STATUS="<span class='badge pass'>Healthy File Tables</span>"
 fi
 
-# Kernel Exception Hunting (Scoped strictly to the current boot cycle with -b)
-OOM_COUNT=$(journalctl -k -b -g "Out of memory" --no-pager 2>/dev/null | wc -l)
+# FIXED: Strict match for actual kernel OOM invocations rather than generic text hits
+OOM_COUNT=$(journalctl -k -b | grep -i "invoked oom-killer" | wc -l)
 if [ "${OOM_COUNT:-0}" -gt 0 ]; then
     OOM_STATUS="<span class='badge alert'>OOM Killer Triggered ($OOM_COUNT times)</span>"
 else
     OOM_STATUS="<span class='badge pass'>Clear</span>"
 fi
 
-# Thermal Engine: Counts hardware throttling messages
-THERM_COUNT=$(dmesg | grep -iE 'thermal|throttling' | wc -l)
+# FIXED: Only count critical hardware critical thermal trips, ignoring standard ACPI polling
+THERM_COUNT=$(dmesg | grep -iE 'critical temperature|thermal throttling' | wc -l)
 if [ "${THERM_COUNT:-0}" -gt 0 ]; then
-    THERM_STATUS="<span class='badge warn'>Log History Warnings ($THERM_COUNT)</span>"
+    THERM_STATUS="<span class='badge alert'>Thermal Throttling Engaged ($THERM_COUNT)</span>"
 else
     THERM_STATUS="<span class='badge pass'>Clear</span>"
 fi
@@ -95,7 +94,6 @@ NET_INTERFACES_DATA=$(
         printf "%-10s %-15s %s\n" "$iface" "${ipv4:-None}" "${ipv6:-None}"
     done
 )
-
 
 # --- GENERATION LAYER (HTML OUTPUT) ---
 
@@ -198,7 +196,7 @@ $(df -i -x devtmpfs -x tmpfs -x squashfs 2>/dev/null)</pre>
         <pre>$(journalctl -k -b -p 0..4 -n 15 --no-pager 2>/dev/null || echo "No critical kernel events registered.")</pre>
 
         <h3>Device Driver Hardware Tracking Ring Buffer</h3>
-        <pre>$(dmesg | grep -iE 'fail|error|hardware|corrupt|drop|(rtw.*(fail|time|warn|lps))' | tail -n 15 || echo "No explicit faults tracked.")</pre>
+        <pre>$(dmesg | grep -iE 'hardware error|corrupted|firmware crash' | tail -n 15 || echo "No explicit hardware degradation faults tracked.")</pre>
     </div>
 
 </div>
@@ -210,7 +208,7 @@ COLOR_CYAN='\033[1;36m'
 COLOR_RESET='\033[0m'
 
 printf "\n=========================================\n"
-printf " [+] Diagnostic Engine Complete!\n"
+printf " [+] Diagnostic Engine Updated!\n"
 printf " [+] Structured HTML Report compiled to:\n"
 printf "     ${COLOR_CYAN}%s${COLOR_RESET}\n" "${REPORT_FILE}"
 printf "=========================================\n"
