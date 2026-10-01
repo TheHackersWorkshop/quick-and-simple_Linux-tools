@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# System Diagnostic Report Generator - Bulletproof Edition
+# System Diagnostic Report Generator - Pro Edition
+
 set -euo pipefail
 shopt -s nullglob
 
@@ -49,7 +50,6 @@ check_command() {
 }
 
 safe_execute() {
-    # Execute command with timeout and capture both stdout and stderr
     local cmd_name="$1"
     shift
     local result
@@ -61,6 +61,14 @@ safe_execute() {
         log_warn "Command '$cmd_name' failed or returned no data"
         return 1
     fi
+}
+
+html_escape() {
+    local string="$1"
+    string="${string//&/&amp;}"
+    string="${string//</&lt;}"
+    string="${string//>/&gt;}"
+    echo "$string"
 }
 
 # --- PERMISSION CHECK ---
@@ -110,20 +118,18 @@ fi
 TIMESTAMP=$(date +%Y%m%d_%H%M%S 2>/dev/null || date +%Y%m%d_%H%M%S)
 REPORT_FILE="${REPORT_DIR}/sys_report_${TIMESTAMP}.html"
 TEMP_DIR=$(mktemp -d -t sysdiag-XXXXXX)
-[ -n "$TEMP_DIR" ] && trap "rm -rf '$TEMP_DIR'" EXIT INT TERM
+trap 'rm -rf -- "$TEMP_DIR"' EXIT INT TERM
 
 log_info "Starting system diagnostic collection..."
 log_info "Report will be saved to: $REPORT_FILE"
 
 # --- DATA COLLECTION LAYER ---
-
-# System Information
 HOSTNAME=$(safe_execute "hostname" hostname 2>/dev/null || echo "Unknown")
 KERNEL=$(safe_execute "kernel version" uname -r 2>/dev/null || echo "Unknown")
 UPTIME=$(safe_execute "uptime" uptime -p 2>/dev/null || echo "Unavailable")
 CURRENT_DATE=$(date +"%Y-%m-%d %H:%M:%S %Z" 2>/dev/null || date)
 
-# CPU Metrics - Multiple fallback methods
+# CPU Metrics
 CPU_USAGE="N/A"
 MEM_PCT="N/A"
 MEM_USED="N/A"
@@ -139,7 +145,6 @@ if check_command vmstat; then
     fi
 fi
 
-# Fallback CPU calculation using /proc/stat
 if [ "$CPU_USAGE" = "N/A" ] && [ -f /proc/stat ]; then
     CPU_DATA=($(head -n1 /proc/stat 2>/dev/null))
     if [ ${#CPU_DATA[@]} -ge 5 ]; then
@@ -213,7 +218,7 @@ if check_command dmesg; then
     if THERM_COUNT=$(dmesg 2>/dev/null | grep -ciE 'critical temperature|thermal throttling'); then
         THERM_COUNT=${THERM_COUNT:-0}
         if [ "$THERM_COUNT" -gt 0 ]; then
-            THERM_STATUS="<span class='badge alert'>Thermal Throttling Engaged ($THERM_COUNT events)</span>"
+            THERM_STATUS="<span class='badge alert'>Thermal Throttling ($THERM_COUNT events)</span>"
         else
             THERM_STATUS="<span class='badge pass'>Clear</span>"
         fi
@@ -236,7 +241,6 @@ if check_command curl; then
     fi
 else
     PUBLIC_IP="curl unavailable"
-    log_warn "curl not found - network connectivity checks skipped"
 fi
 
 # Build Network Interface Table
@@ -248,7 +252,7 @@ if check_command ip; then
 
         if [ -d /sys/class/net ]; then
             for dev in /sys/class/net/*; do
-                iface=$(basename "$dev")
+                iface="${dev##*/}"
                 [ "$iface" = "lo" ] && continue
 
                 ipv4=$(ip -4 addr show dev "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
@@ -263,7 +267,7 @@ fi
 # Process and Socket Information
 TOP_PROCESSES="Process information unavailable"
 if check_command ps; then
-    TOP_PROCESSES=$(ps -eo pid,user,%cpu,%mem,comm --sort=-%cpu 2>/dev/null | grep -v 'ps' | head -n 11) || \
+    TOP_PROCESSES=$(ps -eo pid,user,%cpu,%mem,comm --sort=-%cpu 2>/dev/null | head -n 11) || \
     TOP_PROCESSES="Failed to retrieve process list"
 fi
 
@@ -273,11 +277,15 @@ if check_command ss; then
     SOCKET_DATA="Failed to retrieve socket information"
 fi
 
-# Storage Details
+# Storage Details (Fixed using clean multi-line string concatenation)
 FS_DATA="Filesystem information unavailable"
 if check_command df; then
-    FS_DATA=$(df -h -x devtmpfs -x tmpfs -x squashfs 2>/dev/null)
-    FS_DATA="${FS_DATA}\n\nInodes:\n$(df -i -x devtmpfs -x tmpfs -x squashfs 2>/dev/null)"
+    FS_DF=$(df -h -x devtmpfs -x tmpfs -x squashfs 2>/dev/null)
+    FS_INODE=$(df -i -x devtmpfs -x tmpfs -x squashfs 2>/dev/null)
+    FS_DATA="${FS_DF}
+
+Inodes:
+${FS_INODE}"
 fi
 
 # System Events
@@ -294,7 +302,7 @@ if check_command dmesg; then
 fi
 
 # --- HTML REPORT GENERATION ---
-log_info "Generating HTML report..."
+log_info "Generating professional HTML report..."
 
 cat > "$TEMP_DIR/report.html" << 'HTMLEOF'
 <!DOCTYPE html>
@@ -304,128 +312,156 @@ cat > "$TEMP_DIR/report.html" << 'HTMLEOF'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Diagnostic Report</title>
     <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border-color: #e9ecef;
+            --primary-gradient: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --code-bg: #1a202c;
+            --code-text: #e2e8f0;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #f8f9fa;
-            color: #333;
-            line-height: 1.6;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 30px 20px;
         }
         .container { max-width: 1200px; margin: 0 auto; }
+
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 35px 40px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
-        .header h1 { font-size: 28px; margin-bottom: 10px; }
-        .header .meta { opacity: 0.9; font-size: 14px; }
+        .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.3px; }
+        .header .meta { opacity: 0.85; font-size: 13px; font-family: monospace; }
+
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         .card {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            border: 1px solid var(--border-color);
         }
-        .card:hover { transform: translateY(-2px); }
         .card h3 {
-            font-size: 13px;
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #6c757d;
-            margin-bottom: 15px;
-            font-weight: 600;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 700;
         }
         .metric {
             font-size: 32px;
-            font-weight: bold;
-            color: #2d3748;
-            margin-bottom: 5px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
         }
-        .submetric { color: #718096; font-size: 13px; }
+        .submetric { color: var(--text-muted); font-size: 13px; }
+
         .section {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
             margin-bottom: 20px;
+            border: 1px solid var(--border-color);
         }
         .section h2 {
-            font-size: 18px;
-            color: #2d3748;
+            font-size: 16px;
+            color: var(--text-main);
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
         }
+        .section h3 {
+            font-size: 14px;
+            color: var(--text-main);
+            margin: 20px 0 10px 0;
+            font-weight: 600;
+        }
+
         .badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .pass { background: #d4edda; color: #155724; }
-        .warn { background: #fff3cd; color: #856404; }
-        .alert { background: #f8d7da; color: #721c24; }
+        .pass { background: #e6f4ea; color: #137333; }
+        .warn { background: #fef7e0; color: #b06000; }
+        .alert { background: #fce8e6; color: #c5221f; }
+
         pre {
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 20px;
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 18px;
             border-radius: 8px;
             overflow-x: auto;
-            font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", monospace;
-            font-size: 13px;
-            line-height: 1.6;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            line-height: 1.5;
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         th, td {
-            padding: 12px;
+            padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
         }
         th {
-            background: #f7fafc;
-            color: #4a5568;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            background: #f8f9fa;
+            color: var(--text-muted);
             font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
         }
-        tr:hover td { background: #f7fafc; }
+        tr:hover td { background: #fdfefe; }
+
         .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-direction: column;
             gap: 10px;
         }
         .status-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--border-color);
+            font-size: 13px;
         }
-        .timestamp {
-            text-align: right;
+        .status-item:last-child { border-bottom: none; }
+
+        .footer {
+            text-align: center;
             font-size: 12px;
-            color: #a0aec0;
-            margin-top: 20px;
+            color: var(--text-muted);
+            margin-top: 30px;
         }
     </style>
 </head>
@@ -433,30 +469,30 @@ cat > "$TEMP_DIR/report.html" << 'HTMLEOF'
     <div class="container">
 HTMLEOF
 
-# Append dynamic content
+# Append dynamic content with escaped variables
 cat >> "$TEMP_DIR/report.html" << EOF
         <div class="header">
-            <h1>🖥️ System Diagnostics Report</h1>
+            <h1>System Diagnostic Report</h1>
             <div class="meta">
-                <strong>Hostname:</strong> ${HOSTNAME} &nbsp;|&nbsp;
-                <strong>Kernel:</strong> ${KERNEL} &nbsp;|&nbsp;
-                <strong>Generated:</strong> ${CURRENT_DATE}
+                HOST: $(html_escape "${HOSTNAME}") &nbsp;|&nbsp;
+                KERNEL: $(html_escape "${KERNEL}") &nbsp;|&nbsp;
+                TIMESTAMP: $(html_escape "${CURRENT_DATE}")
             </div>
         </div>
 
         <div class="grid">
             <div class="card">
-                <h3>📊 CPU Utilization</h3>
-                <div class="metric">${CPU_USAGE}%</div>
+                <h3>CPU Utilization</h3>
+                <div class="metric">$(html_escape "${CPU_USAGE}")%</div>
                 <div class="submetric">Active compute load</div>
             </div>
             <div class="card">
-                <h3>🧠 Memory Usage</h3>
-                <div class="metric">${MEM_PCT}%</div>
-                <div class="submetric">${MEM_USED} / ${MEM_TOTAL}</div>
+                <h3>Memory Usage</h3>
+                <div class="metric">$(html_escape "${MEM_PCT}")%</div>
+                <div class="submetric">$(html_escape "${MEM_USED}") / $(html_escape "${MEM_TOTAL}")</div>
             </div>
             <div class="card">
-                <h3>🔍 System Health</h3>
+                <h3>System Health</h3>
                 <div class="status-grid">
                     <div class="status-item">
                         <span>Swap I/O:</span>
@@ -473,7 +509,7 @@ cat >> "$TEMP_DIR/report.html" << EOF
                 </div>
             </div>
             <div class="card">
-                <h3>⚡ Kernel Events</h3>
+                <h3>Kernel Events</h3>
                 <div class="status-grid">
                     <div class="status-item">
                         <span>OOM Killer:</span>
@@ -488,41 +524,41 @@ cat >> "$TEMP_DIR/report.html" << EOF
         </div>
 
         <div class="section">
-            <h2>🔝 Top 10 CPU-Intensive Processes</h2>
-            <pre>${TOP_PROCESSES}</pre>
+            <h2>Top 10 CPU-Intensive Processes</h2>
+            <pre>$(html_escape "${TOP_PROCESSES}")</pre>
         </div>
 
         <div class="section">
-            <h2>💾 Filesystem Analysis</h2>
-            <pre>${FS_DATA}</pre>
+            <h2>Filesystem Analysis</h2>
+            <pre>$(html_escape "${FS_DATA}")</pre>
         </div>
 
         <div class="section">
-            <h2>🌐 Network Diagnostics</h2>
+            <h2>Network Diagnostics</h2>
             <table>
-                <tr><th>Public IPv4</th><td>${PUBLIC_IP}</td></tr>
+                <tr><th>Public IPv4</th><td>$(html_escape "${PUBLIC_IP}")</td></tr>
                 <tr><th>Connectivity Status</th><td>${NET_EGRESS_STATUS}</td></tr>
-                <tr><th>System Uptime</th><td>${UPTIME}</td></tr>
+                <tr><th>System Uptime</th><td>$(html_escape "${UPTIME}")</td></tr>
             </table>
 
-            <h3 style="margin-top: 20px;">Network Interfaces</h3>
-            <pre>${NET_INTERFACES_DATA}</pre>
+            <h3>Network Interfaces</h3>
+            <pre>$(html_escape "${NET_INTERFACES_DATA}")</pre>
 
-            <h3 style="margin-top: 20px;">Listening Sockets</h3>
-            <pre>${SOCKET_DATA}</pre>
+            <h3>Listening Sockets</h3>
+            <pre>$(html_escape "${SOCKET_DATA}")</pre>
         </div>
 
         <div class="section">
-            <h2>📋 System Event Logs</h2>
+            <h2>System Event Logs</h2>
             <h3>Critical Kernel Events (Current Boot)</h3>
-            <pre>${KERNEL_EVENTS}</pre>
+            <pre>$(html_escape "${KERNEL_EVENTS}")</pre>
 
-            <h3 style="margin-top: 20px;">Hardware Fault Tracking</h3>
-            <pre>${HARDWARE_ERRORS}</pre>
+            <h3>Hardware Fault Tracking</h3>
+            <pre>$(html_escape "${HARDWARE_ERRORS}")</pre>
         </div>
 
-        <div class="timestamp">
-            Report generated by System Diagnostic Tool v2.0 | ${HOSTNAME} | ${CURRENT_DATE}
+        <div class="footer">
+            System Diagnostic Tool | $(html_escape "${HOSTNAME}") | Generated on $(html_escape "${CURRENT_DATE}")
         </div>
     </div>
 </body>
@@ -531,13 +567,12 @@ EOF
 
 # Finalize report
 if mv "$TEMP_DIR/report.html" "$REPORT_FILE" 2>/dev/null; then
-    # Compress if gzip is available and file is larger than 1MB
-    if check_command gzip && [ -f "$REPORT_FILE" ] && [ "$(stat -f%z "$REPORT_FILE" 2>/dev/null || stat -c%s "$REPORT_FILE" 2>/dev/null || echo 0)" -gt 1048576 ]; then
+    FILE_SIZE=$(stat -c%s "$REPORT_FILE" 2>/dev/null || echo 0)
+    if check_command gzip && [ -f "$REPORT_FILE" ] && [ "$FILE_SIZE" -gt 1048576 ]; then
         gzip -f "$REPORT_FILE" 2>/dev/null && REPORT_FILE="${REPORT_FILE}.gz"
         log_info "Report compressed due to size"
     fi
 
-    # Clean up old reports (keep last 30 days)
     if [ -d "$REPORT_DIR" ]; then
         find "$REPORT_DIR" -name "sys_report_*.html*" -mtime +30 -delete 2>/dev/null
         log_info "Cleaned up reports older than 30 days"
@@ -546,11 +581,10 @@ if mv "$TEMP_DIR/report.html" "$REPORT_FILE" 2>/dev/null; then
     echo
     echo "========================================="
     log_info "Diagnostic report generated successfully!"
-    echo "     ${CYAN}${REPORT_FILE}${RESET}"
+    echo "    ${CYAN}${REPORT_FILE}${RESET}"
     echo "========================================="
 
-    # Offer to open in browser if available
-    if check_command xdg-open; then
+    if check_command xdg-open && [ -t 0 ]; then
         echo -n "Open in browser? (y/N): "
         read -r OPEN_BROWSER
         if [[ "$OPEN_BROWSER" =~ ^[Yy]$ ]]; then
