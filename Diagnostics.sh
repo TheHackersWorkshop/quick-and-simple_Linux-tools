@@ -86,7 +86,7 @@ REQUIRED_COMMANDS=(
 )
 
 OPTIONAL_COMMANDS=(
-    "curl" "journalctl" "dmesg" "ip" "column"
+    "curl" "journalctl" "dmesg" "ip" "column" "sensors" "nvidia-smi"
 )
 
 MISSING_REQUIRED=0
@@ -198,32 +198,57 @@ if check_command df; then
     fi
 fi
 
-# Kernel Interventions - OOM and Thermal
+# Kernel Interventions - OOM Monitoring
 OOM_STATUS="<span class='badge warn'>Not Checked</span>"
-THERM_STATUS="<span class='badge warn'>Not Checked</span>"
-
 if check_command journalctl; then
     OOM_COUNT=$(journalctl -k -b 2>/dev/null | grep -ci "invoked oom-killer" || true)
     OOM_COUNT=${OOM_COUNT:-0}
     if [ "$OOM_COUNT" -gt 0 ]; then
-        OOM_STATUS="<span class='badge alert'>OOM Killer Triggered ($OOM_COUNT times)</span>"
+        OOM_STATUS="<span class='badge alert'>Triggered ($OOM_COUNT times)</span>"
     else
         OOM_STATUS="<span class='badge pass'>Clear</span>"
     fi
 else
-    OOM_STATUS="<span class='badge warn'>journalctl unavailable</span>"
+    OOM_STATUS="<span class='badge warn'>Unavailable</span>"
 fi
 
-if check_command dmesg; then
-    THERM_COUNT=$(dmesg 2>/dev/null | grep -ciE 'critical temperature|thermal throttling' || true)
-    THERM_COUNT=${THERM_COUNT:-0}
-    if [ "$THERM_COUNT" -gt 0 ]; then
-        THERM_STATUS="<span class='badge alert'>Thermal Throttling ($THERM_COUNT events)</span>"
-    else
-        THERM_STATUS="<span class='badge pass'>Clear</span>"
+# Temperature Metrics (CPU & GPU)
+CPU_TEMP="N/A"
+GPU_TEMP="N/A"
+
+if check_command sensors; then
+    raw_cpu=$(sensors 2>/dev/null | awk '/Package id 0:|Core 0:/ {print $3; exit}' | tr -d '+°C')
+    if [ -z "$raw_cpu" ]; then
+        raw_cpu=$(sensors 2>/dev/null | awk '/temp1:/ {print $2; exit}' | tr -d '+°C')
     fi
-else
-    THERM_STATUS="<span class='badge warn'>dmesg unavailable</span>"
+    [[ "$raw_cpu" =~ ^[0-9]+([.][0-9]+)?$ ]] && CPU_TEMP="${raw_cpu%.*}°C"
+fi
+
+if [ "$CPU_TEMP" = "N/A" ]; then
+    for zone in /sys/class/thermal/thermal_zone*; do
+        if [ -f "$zone/temp" ] && [ -f "$zone/type" ]; then
+            zone_type=$(cat "$zone/type" 2>/dev/null)
+            if [[ "$zone_type" =~ x86_pkg_thermal|acpitz|cpu ]]; then
+                raw_temp=$(cat "$zone/temp" 2>/dev/null)
+                if [[ "$raw_temp" =~ ^[0-9]+$ ]]; then
+                    CPU_TEMP="$((raw_temp / 1000))°C"
+                    break
+                fi
+            fi
+        fi
+    done
+fi
+
+if [ "$CPU_TEMP" = "N/A" ] && [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+    raw_temp=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0)
+    if [[ "$raw_temp" =~ ^[0-9]+$ ]] && [ "$raw_temp" -gt 0 ]; then
+        CPU_TEMP="$((raw_temp / 1000))°C"
+    fi
+fi
+
+if check_command nvidia-smi; then
+    raw_gpu=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null | head -n1 | tr -d ' ')
+    [[ "$raw_gpu" =~ ^[0-9]+$ ]] && GPU_TEMP="${raw_gpu}°C"
 fi
 
 # Network Diagnostics
@@ -276,7 +301,7 @@ if check_command ss; then
     SOCKET_DATA="Failed to retrieve socket information"
 fi
 
-# Storage Details (Fixed using clean multi-line string concatenation)
+# Storage Details
 FS_DATA="Filesystem information unavailable"
 if check_command df; then
     FS_DF=$(df -h -x devtmpfs -x tmpfs -x squashfs 2>/dev/null)
@@ -330,7 +355,7 @@ cat > "$TEMP_DIR/report.html" << 'HTMLEOF'
             padding: 30px 20px;
         }
         .container { max-width: 1200px; margin: 0 auto; }
-
+        
         .header {
             background: var(--primary-gradient);
             color: white;
@@ -508,15 +533,19 @@ cat >> "$TEMP_DIR/report.html" << EOF
                 </div>
             </div>
             <div class="card">
-                <h3>Kernel Events</h3>
+                <h3>Temperatures & Events</h3>
                 <div class="status-grid">
+                    <div class="status-item">
+                        <span>CPU Temp:</span>
+                        <strong>$(html_escape "${CPU_TEMP}")</strong>
+                    </div>
+                    <div class="status-item">
+                        <span>GPU Temp:</span>
+                        <strong>$(html_escape "${GPU_TEMP}")</strong>
+                    </div>
                     <div class="status-item">
                         <span>OOM Killer:</span>
                         ${OOM_STATUS}
-                    </div>
-                    <div class="status-item">
-                        <span>Thermal:</span>
-                        ${THERM_STATUS}
                     </div>
                 </div>
             </div>
