@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# System Diagnostic Report Generator - Pro Edition
+# System Diagnostic Report Generator - Professional Edition
+# Part of quick-and-simple_Linux-tools: https://github.com/TheHackersWorkshop/quick-and-simple_Linux-tools
 
 set -euo pipefail
 shopt -s nullglob
@@ -202,26 +203,24 @@ OOM_STATUS="<span class='badge warn'>Not Checked</span>"
 THERM_STATUS="<span class='badge warn'>Not Checked</span>"
 
 if check_command journalctl; then
-    if OOM_COUNT=$(journalctl -k -b 2>/dev/null | grep -ci "invoked oom-killer"); then
-        OOM_COUNT=${OOM_COUNT:-0}
-        if [ "$OOM_COUNT" -gt 0 ]; then
-            OOM_STATUS="<span class='badge alert'>OOM Killer Triggered ($OOM_COUNT times)</span>"
-        else
-            OOM_STATUS="<span class='badge pass'>Clear</span>"
-        fi
+    OOM_COUNT=$(journalctl -k -b 2>/dev/null | grep -ci "invoked oom-killer" || true)
+    OOM_COUNT=${OOM_COUNT:-0}
+    if [ "$OOM_COUNT" -gt 0 ]; then
+        OOM_STATUS="<span class='badge alert'>OOM Killer Triggered ($OOM_COUNT times)</span>"
+    else
+        OOM_STATUS="<span class='badge pass'>Clear</span>"
     fi
 else
     OOM_STATUS="<span class='badge warn'>journalctl unavailable</span>"
 fi
 
 if check_command dmesg; then
-    if THERM_COUNT=$(dmesg 2>/dev/null | grep -ciE 'critical temperature|thermal throttling'); then
-        THERM_COUNT=${THERM_COUNT:-0}
-        if [ "$THERM_COUNT" -gt 0 ]; then
-            THERM_STATUS="<span class='badge alert'>Thermal Throttling ($THERM_COUNT events)</span>"
-        else
-            THERM_STATUS="<span class='badge pass'>Clear</span>"
-        fi
+    THERM_COUNT=$(dmesg 2>/dev/null | grep -ciE 'critical temperature|thermal throttling' || true)
+    THERM_COUNT=${THERM_COUNT:-0}
+    if [ "$THERM_COUNT" -gt 0 ]; then
+        THERM_STATUS="<span class='badge alert'>Thermal Throttling ($THERM_COUNT events)</span>"
+    else
+        THERM_STATUS="<span class='badge pass'>Clear</span>"
     fi
 else
     THERM_STATUS="<span class='badge warn'>dmesg unavailable</span>"
